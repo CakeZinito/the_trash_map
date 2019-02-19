@@ -1,8 +1,9 @@
 package com.example.thetrashmap;
 
 import android.Manifest;
-import android.app.Activity;
+import android.annotation.SuppressLint;
 import android.content.Context;
+import android.content.Intent;
 import android.content.pm.PackageManager;
 import android.graphics.ImageFormat;
 import android.graphics.SurfaceTexture;
@@ -17,7 +18,6 @@ import android.hardware.camera2.TotalCaptureResult;
 import android.hardware.camera2.params.StreamConfigurationMap;
 import android.media.Image;
 import android.media.ImageReader;
-import android.os.AsyncTask;
 import android.os.Bundle;
 import android.os.Environment;
 import android.os.Handler;
@@ -31,20 +31,13 @@ import android.view.Surface;
 import android.view.TextureView;
 import android.view.View;
 import android.widget.Button;
-import android.widget.TextView;
 import android.widget.Toast;
 
-import java.io.BufferedInputStream;
 import java.io.File;
 import java.io.FileNotFoundException;
 import java.io.FileOutputStream;
 import java.io.IOException;
-import java.io.InputStream;
 import java.io.OutputStream;
-import java.io.PrintWriter;
-import java.net.Socket;
-import java.net.URL;
-import java.net.URLConnection;
 import java.nio.ByteBuffer;
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -112,17 +105,24 @@ public class MainActivity extends AppCompatActivity {
         btnCapture = (Button)findViewById(R.id.btnCapture);
         btnCapture.setOnClickListener(new View.OnClickListener() {
             @Override
-            public void onClick(View view) {
-                takePicture();
+            public void onClick(View v) {
+                        Intent intent = new Intent(".Main2Activity");
+                        startActivity(intent);
+                    }
+                });
+
             }
-        });
-    }
 
+
+
+
+
+
+    @SuppressLint("NewApi")
     private void takePicture() {
-        if(cameraDevice == null) return;
-
+        if(cameraDevice == null)
+            return;
         CameraManager manager = (CameraManager)getSystemService(Context.CAMERA_SERVICE);
-
         try{
             CameraCharacteristics characteristics = manager.getCameraCharacteristics(cameraDevice.getId());
             Size[] jpegSizes = null;
@@ -152,12 +152,12 @@ public class MainActivity extends AppCompatActivity {
             captureBuilder.set(CaptureRequest.JPEG_ORIENTATION,ORIENTATIONS.get(rotation));
 
             file = new File(Environment.getExternalStorageDirectory()+"/"+UUID.randomUUID().toString()+".jpg");
-            ImageReader.OnImageAvailableListener readerListener = new ImageReader.OnImageAvailableListener() {
+            @SuppressLint("NewApi") ImageReader.OnImageAvailableListener readerListener = new ImageReader.OnImageAvailableListener() {
                 @Override
                 public void onImageAvailable(ImageReader imageReader) {
                     Image image = null;
                     try{
-                        image = reader.acquireLatestImage(); // SEND HERE
+                        image = reader.acquireLatestImage();
                         ByteBuffer buffer = image.getPlanes()[0].getBuffer();
                         byte[] bytes = new byte[buffer.capacity()];
                         buffer.get(bytes);
@@ -223,6 +223,7 @@ public class MainActivity extends AppCompatActivity {
         }
     }
 
+    @SuppressLint("NewApi")
     private void createCameraPreview() {
         try{
             SurfaceTexture texture = textureView.getSurfaceTexture();
@@ -353,34 +354,5 @@ public class MainActivity extends AppCompatActivity {
         mBackgroundHandler = new Handler(mBackgroundThread.getLooper());
     }
 
-    class BackgroundTask extends AsyncTask<String,Void,Void>
-    {
-        Socket s;
-        PrintWriter writer;
-
-        @Override
-        protected Void doInBackground(String... voids) {
-            try
-            {
-                String message = voids[0];
-                s = new Socket("ip",8080);
-                writer = new PrintWriter(s.getOutputStream());
-                writer.write(message);
-                writer.flush();
-                writer.close();
-
-
-            }catch(IOException e)
-            {
-                e.printStackTrace();
-            }
-
-
-            return null;
-
-        }
-
-    }
 
 }
-
