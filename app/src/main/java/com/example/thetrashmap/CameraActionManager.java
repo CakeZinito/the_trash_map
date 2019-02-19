@@ -51,15 +51,10 @@ import java.util.Arrays;
 import java.util.List;
 import java.util.UUID;
 
-
-public class MainActivity extends AppCompatActivity {
-
-    private Button btnCapture;
-    private TextureView textureView;
-
-    //Check state orientation of output image
+public class CameraActionManager {
+    // Check state orientation of output image
     private static final SparseIntArray ORIENTATIONS = new SparseIntArray();
-    static{
+    static {
         ORIENTATIONS.append(Surface.ROTATION_0,90);
         ORIENTATIONS.append(Surface.ROTATION_90,0);
         ORIENTATIONS.append(Surface.ROTATION_180,270);
@@ -80,48 +75,31 @@ public class MainActivity extends AppCompatActivity {
     private Handler mBackgroundHandler;
     private HandlerThread mBackgroundThread;
 
-    CameraDevice.StateCallback stateCallback = new CameraDevice.StateCallback() {
-        @Override
-        public void onOpened(@NonNull CameraDevice camera) {
-            cameraDevice = camera;
-            createCameraPreview();
-        }
+    private CameraDevice.StateCallback stateCallback;
 
-        @Override
-        public void onDisconnected(@NonNull CameraDevice cameraDevice) {
-            cameraDevice.close();
-        }
-
-        @Override
-        public void onError(@NonNull CameraDevice cameraDevice, int i) {
-            cameraDevice.close();
-            cameraDevice=null;
-        }
-    };
-
-
-    @Override
-    protected void onCreate(Bundle savedInstanceState) {
-        super.onCreate(savedInstanceState);
-        setContentView(R.layout.activity_main);
-
-        textureView = (TextureView)findViewById(R.id.textureView);
-        //From Java 1.4 , you can use keyword 'assert' to check expression true or false
-        assert textureView != null;
-        textureView.setSurfaceTextureListener(textureListener);
-        btnCapture = (Button)findViewById(R.id.btnCapture);
-        btnCapture.setOnClickListener(new View.OnClickListener() {
+    public void CameraActionManager() {
+        stateCallback = new CameraDevice.StateCallback() {
             @Override
-            public void onClick(View view) {
-                takePicture();
+            public void onOpened(@NonNull CameraDevice camera) {
+                cameraDevice = camera;
+                createCameraPreview();
             }
-        });
+
+            @Override
+            public void onDisconnected(@NonNull CameraDevice cameraDevice) {
+                cameraDevice.close();
+            }
+
+            @Override
+            public void onError(@NonNull CameraDevice cameraDevice, int i) {
+                cameraDevice.close();
+                cameraDevice=null;
+            }
+        };
     }
 
-    private void takePicture() {
+    public void takePicture(CameraManager manager, TextureView textureView, int device_rotation, final Context main_activity) {
         if(cameraDevice == null) return;
-
-        CameraManager manager = (CameraManager)getSystemService(Context.CAMERA_SERVICE);
 
         try{
             CameraCharacteristics characteristics = manager.getCameraCharacteristics(cameraDevice.getId());
@@ -148,8 +126,7 @@ public class MainActivity extends AppCompatActivity {
             captureBuilder.set(CaptureRequest.CONTROL_MODE, CameraMetadata.CONTROL_MODE_AUTO);
 
             //Check orientation base on device
-            int rotation = getWindowManager().getDefaultDisplay().getRotation();
-            captureBuilder.set(CaptureRequest.JPEG_ORIENTATION,ORIENTATIONS.get(rotation));
+            captureBuilder.set(CaptureRequest.JPEG_ORIENTATION,ORIENTATIONS.get(device_rotation));
 
             file = new File(Environment.getExternalStorageDirectory()+"/"+UUID.randomUUID().toString()+".jpg");
             ImageReader.OnImageAvailableListener readerListener = new ImageReader.OnImageAvailableListener() {
@@ -157,7 +134,7 @@ public class MainActivity extends AppCompatActivity {
                 public void onImageAvailable(ImageReader imageReader) {
                     Image image = null;
                     try{
-                        image = reader.acquireLatestImage(); // SEND HERE
+                        image = reader.acquireLatestImage();
                         ByteBuffer buffer = image.getPlanes()[0].getBuffer();
                         byte[] bytes = new byte[buffer.capacity()];
                         buffer.get(bytes);
@@ -196,7 +173,7 @@ public class MainActivity extends AppCompatActivity {
                 @Override
                 public void onCaptureCompleted(@NonNull CameraCaptureSession session, @NonNull CaptureRequest request, @NonNull TotalCaptureResult result) {
                     super.onCaptureCompleted(session, request, result);
-                    Toast.makeText(MainActivity.this, "Saved "+file, Toast.LENGTH_SHORT).show();
+                    Toast.makeText(main_activity, "Saved "+file, Toast.LENGTH_SHORT).show();
                     createCameraPreview();
                 }
             };
@@ -263,7 +240,7 @@ public class MainActivity extends AppCompatActivity {
 
 
     private void openCamera() {
-        CameraManager manager = (CameraManager)getSystemService(Context.CAMERA_SERVICE);
+        android.hardware.camera2.CameraManager manager = (android.hardware.camera2.CameraManager)getSystemService(Context.CAMERA_SERVICE);
         try{
             cameraId = manager.getCameraIdList()[0];
             CameraCharacteristics characteristics = manager.getCameraCharacteristics(cameraId);
@@ -307,80 +284,4 @@ public class MainActivity extends AppCompatActivity {
 
         }
     };
-
-    @Override
-    public void onRequestPermissionsResult(int requestCode, @NonNull String[] permissions, @NonNull int[] grantResults) {
-        if(requestCode == REQUEST_CAMERA_PERMISSION)
-        {
-            if(grantResults[0] != PackageManager.PERMISSION_GRANTED)
-            {
-                Toast.makeText(this, "You can't use camera without permission", Toast.LENGTH_SHORT).show();
-                finish();
-            }
-        }
-    }
-
-    @Override
-    protected void onResume() {
-        super.onResume();
-        startBackgroundThread();
-        if(textureView.isAvailable())
-            openCamera();
-        else
-            textureView.setSurfaceTextureListener(textureListener);
-    }
-
-    @Override
-    protected void onPause() {
-        stopBackgroundThread();
-        super.onPause();
-    }
-
-    private void stopBackgroundThread() {
-        mBackgroundThread.quitSafely();
-        try{
-            mBackgroundThread.join();
-            mBackgroundThread= null;
-            mBackgroundHandler = null;
-        } catch (InterruptedException e) {
-            e.printStackTrace();
-        }
-    }
-
-    private void startBackgroundThread() {
-        mBackgroundThread = new HandlerThread("Camera Background");
-        mBackgroundThread.start();
-        mBackgroundHandler = new Handler(mBackgroundThread.getLooper());
-    }
-
-    class BackgroundTask extends AsyncTask<String,Void,Void>
-    {
-        Socket s;
-        PrintWriter writer;
-
-        @Override
-        protected Void doInBackground(String... voids) {
-            try
-            {
-                String message = voids[0];
-                s = new Socket("ip",8080);
-                writer = new PrintWriter(s.getOutputStream());
-                writer.write(message);
-                writer.flush();
-                writer.close();
-
-
-            }catch(IOException e)
-            {
-                e.printStackTrace();
-            }
-
-
-            return null;
-
-        }
-
-    }
-
 }
-
