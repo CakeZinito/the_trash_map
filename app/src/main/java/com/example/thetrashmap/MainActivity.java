@@ -2,6 +2,7 @@ package com.example.thetrashmap;
 
 import android.content.Context;
 import android.content.pm.PackageManager;
+import android.graphics.Camera;
 import android.support.v7.app.AppCompatActivity;
 import android.os.Bundle;
 
@@ -22,6 +23,18 @@ public class MainActivity extends AppCompatActivity {
             // no camera on this device
             return false;
         }
+    }
+
+    /** A safe way to get an instance of the Camera object. */
+    public static Camera getCameraInstance(){
+        Camera op = null;
+        try {
+            op = Camera.open(); // attempt to get a Camera instance
+        }
+        catch (Exception e){
+            // Camera is not available (in use or does not exist)
+        }
+        return op; // returns null if camera is unavailable
     }
 }
 
