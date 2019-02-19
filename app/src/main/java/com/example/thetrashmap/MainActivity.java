@@ -1,6 +1,7 @@
 package com.example.thetrashmap;
 
 import android.Manifest;
+import android.app.Activity;
 import android.content.Context;
 import android.content.pm.PackageManager;
 import android.graphics.ImageFormat;
@@ -16,6 +17,7 @@ import android.hardware.camera2.TotalCaptureResult;
 import android.hardware.camera2.params.StreamConfigurationMap;
 import android.media.Image;
 import android.media.ImageReader;
+import android.os.AsyncTask;
 import android.os.Bundle;
 import android.os.Environment;
 import android.os.Handler;
@@ -29,20 +31,26 @@ import android.view.Surface;
 import android.view.TextureView;
 import android.view.View;
 import android.widget.Button;
+import android.widget.TextView;
 import android.widget.Toast;
 
-import com.example.thetrashmap.R;
-
+import java.io.BufferedInputStream;
 import java.io.File;
 import java.io.FileNotFoundException;
 import java.io.FileOutputStream;
 import java.io.IOException;
+import java.io.InputStream;
 import java.io.OutputStream;
+import java.io.PrintWriter;
+import java.net.Socket;
+import java.net.URL;
+import java.net.URLConnection;
 import java.nio.ByteBuffer;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
 import java.util.UUID;
+
 
 public class MainActivity extends AppCompatActivity {
 
@@ -343,5 +351,75 @@ public class MainActivity extends AppCompatActivity {
         mBackgroundThread.start();
         mBackgroundHandler = new Handler(mBackgroundThread.getLooper());
     }
+
+    class BackgroundTask extends AsyncTask<String,Void,Void>
+    {
+        Socket s;
+        PrintWriter writer;
+
+        @Override
+        protected Void doInBackground(String... voids) {
+            try
+            {
+                String message = voids[0];
+                s = new Socket("ip",8080);
+                writer = new PrintWriter(s.getOutputStream());
+                writer.write(message);
+                writer.flush();
+                writer.close();
+
+
+            }catch(IOException e)
+            {
+                e.printStackTrace();
+            }
+
+
+            return null;
+
+        }
+
+    }
+
+    public class GetDataFromTheWeb extends Activity {
+        @Override
+        public void onCreate(Bundle icicle) {
+            super.onCreate(icicle);
+
+            /* We will show the data we read in a TextView. */
+            TextView tv = new TextView(this);
+
+            /* Will be filled and displayed later. */
+            String myString = null;
+            try {
+                /* Define the URL we want to load data from. */
+                URL myURL = new URL(
+                        "http://www.anddev.org/images/tut/basic/getdatafromtheweb/loadme.txt");
+                /* Open a connection to that URL. */
+                URLConnection ucon = myURL.openConnection();
+
+                /* Define InputStreams to read
+                 * from the URLConnection. */
+                InputStream is = ucon.getInputStream();
+                BufferedInputStream bis = new BufferedInputStream(is);
+
+                /* Read bytes to the Buffer until
+                 * there is nothing more to read(-1). */
+                ByteArrayBuffer baf = new ByteArrayBuffer(50);
+                int current = 0;
+                while((current = bis.read()) != -1){
+                    baf.append((byte)current);
+                }
+
+                /* Convert the Bytes read to a String. */
+                myString = new String(baf.toByteArray());
+            } catch (Exception e) {
+                /* On any Error we want to display it. */
+                myString = e.getMessage();
+            }
+            /* Show the String on the GUI. */
+            tv.setText(myString);
+            this.setContentView(tv);
+        }
 }
 
